@@ -1,0 +1,28 @@
+﻿flowchart TD
+    U[Usuario] --> CF[CloudFront]
+    CF --> FE[S3 Frontend Estático Privado]
+
+    FE --> API[API Gateway HTTP API]
+    U --> API
+
+    API --> LAPI[Lambda API]
+    LAPI --> DDB[DynamoDB Resultados]
+    LAPI --> S3IN[S3 Bucket CSV Input]
+
+    S3IN -->|ObjectCreated *.csv| LPROC[Lambda Procesadora]
+    LPROC --> DDB
+    LPROC --> DLQ[SQS Dead Letter Queue]
+
+    LAPI --> CWAPI[CloudWatch Logs API]
+    LPROC --> CWPROC[CloudWatch Logs Processor]
+
+    CWAPI --> ALARMS[CloudWatch Alarms]
+    CWPROC --> ALARMS
+    DLQ --> ALARMS
+
+    ALARMS --> SNS[SNS Topic Email Alerts]
+    BUDGET[AWS Budgets] --> EMAIL[Correo estudiante]
+    SNS --> EMAIL
+
+    IAM[IAM Roles mínimo privilegio] -.-> LAPI
+    IAM -.-> LPROC

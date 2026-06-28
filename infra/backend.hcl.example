@@ -1,0 +1,5 @@
+﻿bucket         = "REEMPLAZAR_CON_BUCKET_TFSTATE"
+key            = "datossur/dev/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "REEMPLAZAR_CON_TABLA_DYNAMODB_LOCK"
+encrypt        = true

@@ -1,0 +1,7 @@
+﻿project_name     = "datossur"
+environment      = "dev"
+aws_region       = "us-east-1"
+owner_email      = "angelomarcelo.reyes@alumnos.ulagos.cl"
+budget_limit_usd = 5
+lambda_runtime   = "nodejs20.x"
+log_retention_days = 14

@@ -1,0 +1,36 @@
+﻿# Terraform
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+*.tfvars
+!terraform.tfvars.example
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Terraform backend local config
+infra/backend.hcl
+
+# Lambda / Node
+node_modules/
+dist/
+build/
+*.zip
+
+# Variables locales
+.env
+.env.*
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+
+# Evidencias locales si no quieres versionarlas
+evidencias-locales/
+
+
+# Outputs reales de despliegue local
+docs/outputs-finales.txt

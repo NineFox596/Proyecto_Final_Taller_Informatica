@@ -1,0 +1,64 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DatosSur | Analítica CSV para emprendimientos</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="hero">
+    <nav class="nav">
+      <div class="brand">DatosSur</div>
+      <span class="badge">Serverless AWS</span>
+    </nav>
+
+    <section class="hero-content">
+      <h1>Analítica simple para ventas del sur de Chile</h1>
+      <p>
+        Plataforma serverless que permite cargar archivos CSV de ventas,
+        procesarlos automáticamente y consultar indicadores básicos.
+      </p>
+
+      <div class="actions">
+        <button id="btn-health">Probar API</button>
+        <button id="btn-datasets">Ver datasets</button>
+      </div>
+    </section>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <h2>Estado de la API</h2>
+      <pre id="health-output">Sin consultar todavía.</pre>
+    </section>
+
+    <section class="card">
+      <h2>Resultados procesados</h2>
+      <pre id="datasets-output">Sin consultar todavía.</pre>
+    </section>
+
+    <section class="grid">
+      <article>
+        <h3>Entrada</h3>
+        <p>Archivos CSV subidos a S3.</p>
+      </article>
+      <article>
+        <h3>Procesamiento</h3>
+        <p>Lambda procesa ventas, productos, categorías y filas inválidas.</p>
+      </article>
+      <article>
+        <h3>Resultados</h3>
+        <p>DynamoDB almacena el resumen consultable por API Gateway.</p>
+      </article>
+    </section>
+  </main>
+
+  <footer>
+    Proyecto DatosSur · Hito 1 · Taller de Ingeniería Informática
+  </footer>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
