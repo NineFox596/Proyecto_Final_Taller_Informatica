@@ -1,4 +1,4 @@
-# DatosSur — Hito 1 Infraestructura como Código
+# DatosSur — Infraestructura como Código
 
 DatosSur es una plataforma serverless en AWS para procesar archivos CSV de ventas de pequeños emprendimientos del sur de Chile. El sistema permite cargar archivos CSV, procesarlos automáticamente con AWS Lambda, guardar resultados en DynamoDB y consultarlos desde una API y un frontend web.
 
