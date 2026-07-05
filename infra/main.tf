@@ -1,9 +1,10 @@
 module "storage" {
   source = "./modules/storage"
 
-  name_prefix           = local.name_prefix
-  common_tags           = local.common_tags
-  force_destroy_buckets = true
+  name_prefix                 = local.name_prefix
+  common_tags                 = local.common_tags
+  force_destroy_buckets       = true
+  upload_cors_allowed_origins = var.upload_cors_allowed_origins
 }
 
 module "processing" {

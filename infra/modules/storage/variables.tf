@@ -14,3 +14,9 @@ variable "force_destroy_buckets" {
   type        = bool
   default     = true
 }
+
+variable "upload_cors_allowed_origins" {
+  description = "Orígenes permitidos para CORS en el bucket de entrada CSV."
+  type        = list(string)
+  default     = ["*"]
+}

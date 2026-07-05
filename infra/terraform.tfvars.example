@@ -10,3 +10,4 @@ api_lambda_timeout          = 15
 api_lambda_memory_size      = 256
 processor_lambda_timeout    = 30
 processor_lambda_memory_size = 256
+upload_cors_allowed_origins = ["*"]

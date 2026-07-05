@@ -83,3 +83,9 @@ variable "log_retention_days" {
   type        = number
   default     = 14
 }
+
+variable "upload_cors_allowed_origins" {
+  description = "Orígenes permitidos para subir CSV al bucket S3 de entrada desde el navegador."
+  type        = list(string)
+  default     = ["*"]
+}
