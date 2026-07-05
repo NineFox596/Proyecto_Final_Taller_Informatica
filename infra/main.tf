@@ -14,6 +14,9 @@ module "processing" {
   lambda_runtime     = var.lambda_runtime
   log_retention_days = var.log_retention_days
 
+  processor_lambda_timeout     = var.processor_lambda_timeout
+  processor_lambda_memory_size = var.processor_lambda_memory_size
+
   input_bucket_name = module.storage.input_bucket_name
   input_bucket_arn  = module.storage.input_bucket_arn
 
@@ -30,6 +33,9 @@ module "api" {
   common_tags        = local.common_tags
   lambda_runtime     = var.lambda_runtime
   log_retention_days = var.log_retention_days
+
+  api_lambda_timeout     = var.api_lambda_timeout
+  api_lambda_memory_size = var.api_lambda_memory_size
 
   input_bucket_name = module.storage.input_bucket_name
   input_bucket_arn  = module.storage.input_bucket_arn

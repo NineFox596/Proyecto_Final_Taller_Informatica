@@ -3,5 +3,10 @@ environment      = "dev"
 aws_region       = "us-east-1"
 owner_email      = "angelomarcelo.reyes@alumnos.ulagos.cl"
 budget_limit_usd = 5
-lambda_runtime   = "nodejs20.x"
+lambda_runtime     = "nodejs20.x"
 log_retention_days = 14
+
+api_lambda_timeout          = 15
+api_lambda_memory_size      = 256
+processor_lambda_timeout    = 30
+processor_lambda_memory_size = 256

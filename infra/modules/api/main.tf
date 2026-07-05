@@ -91,8 +91,8 @@ resource "aws_lambda_function" "api" {
   filename         = data.archive_file.api_zip.output_path
   source_code_hash = data.archive_file.api_zip.output_base64sha256
 
-  timeout     = 15
-  memory_size = 256
+  timeout     = var.api_lambda_timeout
+  memory_size = var.api_lambda_memory_size
 
   environment {
     variables = {

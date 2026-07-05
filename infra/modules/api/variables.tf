@@ -19,6 +19,16 @@ variable "log_retention_days" {
   type        = number
 }
 
+variable "api_lambda_timeout" {
+  description = "Tiempo máximo de ejecución en segundos para la Lambda API."
+  type        = number
+}
+
+variable "api_lambda_memory_size" {
+  description = "Memoria asignada en MB para la Lambda API."
+  type        = number
+}
+
 variable "input_bucket_name" {
   description = "Nombre del bucket S3 de entrada."
   type        = string
