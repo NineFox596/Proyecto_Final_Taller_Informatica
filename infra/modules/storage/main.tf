@@ -44,6 +44,18 @@ resource "aws_s3_bucket_versioning" "input" {
   }
 }
 
+resource "aws_s3_bucket_cors_configuration" "input" {
+  bucket = aws_s3_bucket.input.id
+
+  cors_rule {
+    allowed_headers = ["*"]
+    allowed_methods = ["PUT"]
+    allowed_origins = var.upload_cors_allowed_origins
+    expose_headers  = ["ETag"]
+    max_age_seconds = 3000
+  }
+}
+
 resource "aws_s3_bucket_ownership_controls" "input" {
   bucket = aws_s3_bucket.input.id
 

@@ -97,8 +97,8 @@ resource "aws_lambda_function" "processor" {
   filename         = data.archive_file.processor_zip.output_path
   source_code_hash = data.archive_file.processor_zip.output_base64sha256
 
-  timeout     = 30
-  memory_size = 256
+  timeout     = var.processor_lambda_timeout
+  memory_size = var.processor_lambda_memory_size
 
   environment {
     variables = {

@@ -224,3 +224,35 @@ yes
 ```
 
 No debe destruirse el backend antes que la infraestructura principal, porque el estado remoto se necesita para que Terraform pueda eliminar correctamente los recursos creados.
+
+## Evidencia Hito 2 - Validacion inicial del MVP
+
+Fecha de validacion: 2026-07-05
+
+### Outputs principales
+
+- Frontend CloudFront: https://d2ib7x3i7q8x7x.cloudfront.net
+- API Gateway: https://gnnidy1ka8.execute-api.us-east-1.amazonaws.com
+- Bucket CSV input: datossur-dev-csv-input-251335054638
+- Tabla DynamoDB: datossur-dev-results
+- Lambda procesadora: datossur-dev-processor
+- Lambda API: datossur-dev-api
+
+### Pruebas realizadas
+
+- API GET /health operativa.
+- API POST /upload-url genera URL prefirmada correctamente.
+- Subida de entas_validas.csv a S3 completada.
+- Lambda procesadora ejecutada automáticamente desde evento S3.
+- Resultado guardado en DynamoDB con estado COMPLETADO.
+- API GET /datasets devuelve datasets procesados.
+- Frontend público en CloudFront carga correctamente.
+- Frontend muestra datasets, métricas y resultados.
+- Se probó archivo con transacciones inválidas y el frontend muestra el nuevo set con registros inválidos.
+
+### Resultado
+
+El flujo principal del MVP funciona de punta a punta en AWS:
+
+Usuario -> CloudFront -> API Gateway -> Lambda API -> S3 -> Lambda Processor -> DynamoDB -> Frontend
+

@@ -31,6 +31,11 @@ Thumbs.db
 # Evidencias locales si no quieres versionarlas
 evidencias-locales/
 
-
 # Outputs reales de despliegue local
 docs/outputs-finales.txt
+
+# Terraform plan files
+*.tfplan
+*.plan
+tfplan
+plan.out
