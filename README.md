@@ -2,7 +2,7 @@
 
 DatosSur es una plataforma serverless en AWS para procesar archivos CSV de ventas de pequeños emprendimientos del sur de Chile. El sistema permite cargar archivos CSV, procesarlos automáticamente con AWS Lambda, guardar resultados en DynamoDB y consultarlos desde una API y un frontend web.
 
-Este repositorio corresponde al Hito 1 del proyecto final de la asignatura Taller de Ingeniería Informática. La infraestructura fue definida con Terraform, usando módulos propios, backend remoto, seguridad IAM, monitoreo con CloudWatch y control de costos con AWS Budgets.
+Este repositorio corresponde al Hito 2 del proyecto final de la asignatura Taller de Ingeniería Informática. La infraestructura fue definida con Terraform, usando módulos propios, backend remoto, seguridad IAM, monitoreo con CloudWatch y control de costos con AWS Budgets.
 
 ## 1. Objetivo del proyecto
 
@@ -84,13 +84,13 @@ La solución utiliza los siguientes servicios:
 Frontend:
 
 ```text
-https://d3197zbvtz2fyf.cloudfront.net
+https://dziky8atb7317.cloudfront.net
 ```
 
 API Gateway:
 
 ```text
-https://6f87p2cazd.execute-api.us-east-1.amazonaws.com
+https://6zv537rbm5.execute-api.us-east-1.amazonaws.com
 ```
 
 Rutas disponibles:
@@ -298,12 +298,19 @@ budget_name           = datossur-dev-monthly-budget
 
 ## 11. Pruebas funcionales
 
+### Probar frontend público
+
+Abrir en el navegador:
+
+```text
+https://dziky8atb7317.cloudfront.net
+
 ### Probar API
 
 Desde PowerShell:
 
 ```powershell
-$API_ENDPOINT = "https://6f87p2cazd.execute-api.us-east-1.amazonaws.com"
+$API_ENDPOINT = "https://6zv537rbm5.execute-api.us-east-1.amazonaws.com"
 
 Invoke-RestMethod "$API_ENDPOINT/health"
 Invoke-RestMethod "$API_ENDPOINT/datasets"
