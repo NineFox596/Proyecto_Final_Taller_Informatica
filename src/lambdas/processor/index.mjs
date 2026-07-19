@@ -376,12 +376,12 @@ function parseCsv(content) {
       invalidReason = "Categoría vacía.";
     } else if (
       !invalidReason &&
-      (!Number.isFinite(quantity) || quantity <= 0)
+      (quantityRaw === "" || !Number.isFinite(quantity) || quantity <= 0)
     ) {
       invalidReason = "Cantidad inválida; debe ser mayor que cero.";
     } else if (
       !invalidReason &&
-      (!Number.isFinite(unitPrice) || unitPrice < 0)
+      (unitPriceRaw === "" || !Number.isFinite(unitPrice) || unitPrice < 0)
     ) {
       invalidReason = "Precio unitario inválido; debe ser mayor o igual que cero.";
     }
@@ -636,7 +636,11 @@ export const handler = async (event) => {
       console.log(`Archivo procesado correctamente: ${key}`);
       results.push({ datasetId, key, status: "COMPLETADO" });
     } catch (error) {
-      console.error(`Error procesando archivo ${key}:`, error);
+      if (error instanceof CsvValidationError) {
+        console.warn(`Validación controlada para ${key}: ${error.message}`);
+      } else {
+        console.error(`Error técnico procesando archivo ${key}:`, error);
+      }
 
       await saveDatasetResult({
         datasetId,
