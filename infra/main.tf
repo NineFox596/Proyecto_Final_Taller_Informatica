@@ -5,6 +5,10 @@ module "storage" {
   common_tags                 = local.common_tags
   force_destroy_buckets       = true
   upload_cors_allowed_origins = var.upload_cors_allowed_origins
+
+  input_object_expiration_days             = var.input_object_expiration_days
+  input_noncurrent_version_expiration_days = var.input_noncurrent_version_expiration_days
+  enable_dynamodb_pitr                     = var.enable_dynamodb_pitr
 }
 
 module "processing" {
@@ -17,6 +21,7 @@ module "processing" {
 
   processor_lambda_timeout     = var.processor_lambda_timeout
   processor_lambda_memory_size = var.processor_lambda_memory_size
+  max_file_size_bytes          = var.max_upload_size_bytes
 
   input_bucket_name = module.storage.input_bucket_name
   input_bucket_arn  = module.storage.input_bucket_arn
@@ -38,6 +43,13 @@ module "api" {
   api_lambda_timeout     = var.api_lambda_timeout
   api_lambda_memory_size = var.api_lambda_memory_size
 
+  allowed_origins               = var.upload_cors_allowed_origins
+  max_upload_size_bytes         = var.max_upload_size_bytes
+  upload_url_expiration_seconds = var.upload_url_expiration_seconds
+  dataset_limit                 = var.dataset_limit
+  api_throttling_rate_limit     = var.api_throttling_rate_limit
+  api_throttling_burst_limit    = var.api_throttling_burst_limit
+
   input_bucket_name = module.storage.input_bucket_name
   input_bucket_arn  = module.storage.input_bucket_arn
 
@@ -51,7 +63,11 @@ module "frontend" {
   name_prefix           = local.name_prefix
   common_tags           = local.common_tags
   api_endpoint          = module.api.api_endpoint
+  input_bucket_name     = module.storage.input_bucket_name
+  aws_region            = var.aws_region
   force_destroy_buckets = true
+
+  frontend_noncurrent_version_expiration_days = var.frontend_noncurrent_version_expiration_days
 }
 
 module "monitoring" {

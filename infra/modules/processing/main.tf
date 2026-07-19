@@ -102,7 +102,8 @@ resource "aws_lambda_function" "processor" {
 
   environment {
     variables = {
-      RESULTS_TABLE_NAME = var.results_table_name
+      RESULTS_TABLE_NAME  = var.results_table_name
+      MAX_FILE_SIZE_BYTES = tostring(var.max_file_size_bytes)
     }
   }
 

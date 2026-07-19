@@ -27,3 +27,8 @@ output "api_log_group_name" {
   description = "Nombre del Log Group de CloudWatch de la Lambda API."
   value       = aws_cloudwatch_log_group.api_lambda.name
 }
+
+output "api_gateway_access_log_group_name" {
+  description = "Nombre del Log Group de acceso de API Gateway."
+  value       = aws_cloudwatch_log_group.api_gateway_access.name
+}

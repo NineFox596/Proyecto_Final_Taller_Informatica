@@ -29,6 +29,36 @@ variable "api_lambda_memory_size" {
   type        = number
 }
 
+variable "allowed_origins" {
+  description = "Orígenes permitidos por CORS en API Gateway y en las respuestas Lambda."
+  type        = list(string)
+}
+
+variable "max_upload_size_bytes" {
+  description = "Tamaño máximo de archivo declarado en POST /upload-url."
+  type        = number
+}
+
+variable "upload_url_expiration_seconds" {
+  description = "Duración de las URLs prefirmadas de S3."
+  type        = number
+}
+
+variable "dataset_limit" {
+  description = "Cantidad máxima de datasets devueltos por la API."
+  type        = number
+}
+
+variable "api_throttling_rate_limit" {
+  description = "Límite sostenido de solicitudes por segundo del stage."
+  type        = number
+}
+
+variable "api_throttling_burst_limit" {
+  description = "Límite de ráfaga de solicitudes del stage."
+  type        = number
+}
+
 variable "input_bucket_name" {
   description = "Nombre del bucket S3 de entrada."
   type        = string

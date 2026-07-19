@@ -5,9 +5,11 @@ data "archive_file" "api_zip" {
 }
 
 locals {
-  api_lambda_name = "${var.name_prefix}-api"
-  api_log_group   = "/aws/lambda/${local.api_lambda_name}"
-  api_name        = "${var.name_prefix}-http-api"
+  api_lambda_name        = "${var.name_prefix}-api"
+  api_log_group          = "/aws/lambda/${local.api_lambda_name}"
+  api_name               = "${var.name_prefix}-http-api"
+  api_gateway_access_log = "/aws/apigateway/${local.api_name}/access"
+  primary_allowed_origin = var.allowed_origins[0]
 }
 
 resource "aws_cloudwatch_log_group" "api_lambda" {
@@ -18,6 +20,17 @@ resource "aws_cloudwatch_log_group" "api_lambda" {
     Name      = local.api_log_group
     Component = "api"
     Purpose   = "api-lambda-logs"
+  })
+}
+
+resource "aws_cloudwatch_log_group" "api_gateway_access" {
+  name              = local.api_gateway_access_log
+  retention_in_days = var.log_retention_days
+
+  tags = merge(var.common_tags, {
+    Name      = local.api_gateway_access_log
+    Component = "api"
+    Purpose   = "api-gateway-access-logs"
   })
 }
 
@@ -96,8 +109,12 @@ resource "aws_lambda_function" "api" {
 
   environment {
     variables = {
-      RESULTS_TABLE_NAME = var.results_table_name
-      INPUT_BUCKET_NAME  = var.input_bucket_name
+      RESULTS_TABLE_NAME            = var.results_table_name
+      INPUT_BUCKET_NAME             = var.input_bucket_name
+      ALLOWED_ORIGIN                = local.primary_allowed_origin
+      MAX_UPLOAD_SIZE_BYTES         = tostring(var.max_upload_size_bytes)
+      UPLOAD_URL_EXPIRATION_SECONDS = tostring(var.upload_url_expiration_seconds)
+      DATASET_LIMIT                 = tostring(var.dataset_limit)
     }
   }
 
@@ -120,7 +137,7 @@ resource "aws_apigatewayv2_api" "http_api" {
   cors_configuration {
     allow_headers = ["content-type"]
     allow_methods = ["GET", "POST", "OPTIONS"]
-    allow_origins = ["*"]
+    allow_origins = var.allowed_origins
     max_age       = 300
   }
 
@@ -166,6 +183,26 @@ resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.http_api.id
   name        = "$default"
   auto_deploy = true
+
+  access_log_settings {
+    destination_arn = aws_cloudwatch_log_group.api_gateway_access.arn
+    format = jsonencode({
+      requestId               = "$context.requestId"
+      sourceIp                = "$context.identity.sourceIp"
+      requestTime             = "$context.requestTime"
+      httpMethod              = "$context.httpMethod"
+      routeKey                = "$context.routeKey"
+      status                  = "$context.status"
+      protocol                = "$context.protocol"
+      responseLength          = "$context.responseLength"
+      integrationErrorMessage = "$context.integrationErrorMessage"
+    })
+  }
+
+  default_route_settings {
+    throttling_burst_limit = var.api_throttling_burst_limit
+    throttling_rate_limit  = var.api_throttling_rate_limit
+  }
 
   tags = merge(var.common_tags, {
     Name      = "${local.api_name}-default-stage"
