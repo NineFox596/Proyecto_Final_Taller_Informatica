@@ -73,6 +73,11 @@ output "api_log_group_name" {
   value       = module.api.api_log_group_name
 }
 
+output "api_gateway_access_log_group_name" {
+  description = "Log Group de acceso de API Gateway."
+  value       = module.api.api_gateway_access_log_group_name
+}
+
 output "frontend_bucket_name" {
   description = "Bucket privado del frontend estático."
   value       = module.frontend.frontend_bucket_name

@@ -1,13 +1,29 @@
-﻿project_name     = "datossur"
-environment      = "dev"
-aws_region       = "us-east-1"
-owner_email      = "angelomarcelo.reyes@alumnos.ulagos.cl"
+project_name = "datossur"
+environment  = "dev"
+aws_region   = "us-east-1"
+
+owner_email     = "tu-correo@mail.cl"
 budget_limit_usd = 5
+
 lambda_runtime     = "nodejs20.x"
 log_retention_days = 14
 
-api_lambda_timeout          = 15
-api_lambda_memory_size      = 256
-processor_lambda_timeout    = 30
+api_lambda_timeout           = 15
+api_lambda_memory_size       = 256
+processor_lambda_timeout     = 30
 processor_lambda_memory_size = 256
-upload_cors_allowed_origins = ["*"]
+
+# Sustituir por el único dominio CloudFront vigente después del despliegue.
+upload_cors_allowed_origins = ["https://TU_DISTRIBUCION.cloudfront.net"]
+
+max_upload_size_bytes         = 5242880
+upload_url_expiration_seconds = 900
+dataset_limit                 = 25
+
+api_throttling_rate_limit  = 10
+api_throttling_burst_limit = 20
+
+input_object_expiration_days                     = 30
+input_noncurrent_version_expiration_days          = 7
+frontend_noncurrent_version_expiration_days       = 30
+enable_dynamodb_pitr                              = true

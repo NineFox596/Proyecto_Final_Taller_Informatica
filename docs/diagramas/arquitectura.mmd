@@ -1,28 +1,33 @@
-﻿flowchart TD
-    U[Usuario] --> CF[CloudFront]
-    CF --> FE[S3 Frontend Estático Privado]
+flowchart TD
+    U[Usuario] -->|HTTPS| CF[CloudFront]
+    CF -->|OAC| FE[S3 Frontend privado]
 
-    FE --> API[API Gateway HTTP API]
-    U --> API
+    FE -->|GET /datasets<br/>POST /upload-url| APIGW[API Gateway HTTP API]
+    APIGW --> LAPI[Lambda API]
 
-    API --> LAPI[Lambda API]
-    LAPI --> DDB[DynamoDB Resultados]
-    LAPI --> S3IN[S3 Bucket CSV Input]
+    LAPI -->|URL prefirmada| S3IN[S3 CSV Input privado]
+    U -->|PUT directo con URL prefirmada| S3IN
 
-    S3IN -->|ObjectCreated *.csv| LPROC[Lambda Procesadora]
-    LPROC --> DDB
-    LPROC --> DLQ[SQS Dead Letter Queue]
+    S3IN -->|ObjectCreated *.csv| LPROC[Lambda Processor]
+    LPROC -->|Resultados e insights| DDB[DynamoDB Results + PITR]
+    LAPI -->|Lectura de datasets| DDB
 
+    LPROC -. error técnico .-> DLQ[SQS DLQ]
+
+    APIGW --> APILOG[CloudWatch Access Logs]
     LAPI --> CWAPI[CloudWatch Logs API]
     LPROC --> CWPROC[CloudWatch Logs Processor]
-
-    CWAPI --> ALARMS[CloudWatch Alarms]
+    DLQ --> ALARMS[CloudWatch Alarms]
+    CWAPI --> ALARMS
     CWPROC --> ALARMS
-    DLQ --> ALARMS
+    APIGW --> ALARMS
 
-    ALARMS --> SNS[SNS Topic Email Alerts]
-    BUDGET[AWS Budgets] --> EMAIL[Correo estudiante]
+    ALARMS --> SNS[SNS Email Alerts]
+    BUDGET[AWS Budget USD 5] --> EMAIL[Correo del responsable]
     SNS --> EMAIL
 
-    IAM[IAM Roles mínimo privilegio] -.-> LAPI
+    IAM[IAM mínimo privilegio] -.-> LAPI
     IAM -.-> LPROC
+
+    S3IN -. Lifecycle 30 días .-> EXP[Expiración automática]
+    CF -. Security headers .-> SEC[HSTS · CSP · X-Frame-Options]

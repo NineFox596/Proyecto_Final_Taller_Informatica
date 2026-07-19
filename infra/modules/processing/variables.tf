@@ -29,6 +29,11 @@ variable "processor_lambda_memory_size" {
   type        = number
 }
 
+variable "max_file_size_bytes" {
+  description = "Tamaño máximo permitido para el CSV procesado."
+  type        = number
+}
+
 variable "input_bucket_name" {
   description = "Nombre del bucket S3 de entrada."
   type        = string

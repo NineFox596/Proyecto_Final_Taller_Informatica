@@ -1,103 +1,199 @@
 # Arquitectura del Proyecto DatosSur
 
-## 1. Descripción general
+## 1. Contexto de negocio
 
-DatosSur es una plataforma serverless desplegada en AWS para procesar archivos CSV de ventas. Está pensada para pequeños emprendimientos o comercios del sur de Chile que registran sus ventas en planillas y necesitan obtener indicadores simples sin realizar cálculos manuales.
+DatosSur está orientado a pequeños emprendimientos y comercios que registran sus ventas en archivos CSV o planillas. En este contexto, obtener indicadores requiere normalmente ordenar datos, construir fórmulas, preparar tablas dinámicas y generar gráficos manualmente.
 
-El sistema permite cargar archivos CSV, procesarlos automáticamente, almacenar resultados y consultarlos desde una API y un frontend web. La infraestructura fue definida con Terraform, usando módulos reutilizables, backend remoto, roles IAM de mínimo privilegio, monitoreo con CloudWatch y control de costos con AWS Budgets.
+El proyecto automatiza ese proceso y transforma un archivo de ventas en:
 
-## 2. Problema que resuelve
+- métricas ejecutivas;
+- rankings de productos y categorías;
+- porcentaje de calidad de datos;
+- concentración de ventas;
+- insights explicativos;
+- recomendaciones basadas en reglas.
 
-Muchos emprendimientos pequeños registran ventas en archivos CSV o planillas. Analizar manualmente ventas totales, productos más vendidos, categorías con mayor movimiento o filas inválidas puede ser lento y propenso a errores.
+La propuesta no reemplaza sistemas contables ni herramientas de inteligencia empresarial de gran escala. Su alcance es entregar una primera lectura comercial rápida, comprensible y reproducible.
 
-DatosSur automatiza ese flujo mediante una arquitectura event-driven. Cuando un archivo CSV es cargado en S3, AWS genera un evento que invoca una función Lambda. Esta función procesa el archivo y guarda los resultados en DynamoDB.
+## 2. Objetivos de arquitectura
 
-## 3. Justificación del enfoque serverless
+La solución se diseñó para cumplir los siguientes objetivos:
 
-La solución utiliza un enfoque serverless porque el procesamiento ocurre solo cuando se carga un archivo. No existe una carga constante que justifique mantener servidores encendidos.
+1. Ejecutar el procesamiento únicamente cuando exista una carga.
+2. Evitar servidores permanentes y costos fijos.
+3. Mantener el frontend y los archivos de entrada privados.
+4. Separar presentación, API, procesamiento y persistencia.
+5. Tolerar fallos técnicos mediante reintentos y DLQ.
+6. Tratar errores de formato como errores de negocio controlados.
+7. Registrar métricas, logs y alarmas.
+8. Permitir reconstrucción completa mediante Terraform.
+9. Escalar sin administrar infraestructura de cómputo.
+10. Mantener un costo compatible con un Budget de USD 5.
 
-Ventajas principales:
+## 3. Decisión de usar serverless
 
-* No se administran servidores.
-* Se paga principalmente por uso.
-* La solución escala automáticamente ante más eventos.
-* La arquitectura es simple de desplegar y destruir con Terraform.
-* Se alinea con el patrón event-driven visto en la asignatura.
-* Permite integrar S3, Lambda, API Gateway, DynamoDB, CloudWatch, SNS y Budgets.
+El flujo de DatosSur es esporádico y dirigido por eventos: un archivo se procesa cuando un usuario lo carga. No existe una carga sostenida que justifique una instancia encendida permanentemente.
 
-No se usaron EC2, ECS, RDS, ALB, NAT Gateway ni VPC, porque no son necesarios para este caso de uso. Agregarlos solo aumentaría la complejidad y el costo sin aportar al flujo principal del Hito 1.
+Se eligieron servicios serverless porque:
 
-## 4. Diagrama de arquitectura
+- Lambda ejecuta código por invocación;
+- S3 almacena archivos y emite eventos;
+- DynamoDB opera bajo demanda;
+- API Gateway expone una API administrada;
+- CloudFront distribuye el frontend sin servidor web propio;
+- SQS aporta desacoplamiento ante fallos;
+- CloudWatch centraliza logs y alarmas.
 
-El diagrama principal se encuentra en:
+### Alternativas descartadas
 
-```text
-docs/diagramas/arquitectura.mmd
-```
+**EC2.** Requeriría una instancia, volumen EBS, dirección IPv4, actualizaciones, respaldos y administración del sistema operativo. Además, tendría costo fijo aunque no existan cargas.
 
-Versión resumida:
+**ECS/Fargate.** Es apropiado para aplicaciones contenerizadas persistentes, pero añade complejidad innecesaria para dos funciones pequeñas y event-driven.
+
+**RDS.** El modelo de DatosSur almacena documentos de resultado identificados por `dataset_id`; no requiere relaciones complejas ni transacciones SQL.
+
+**VPC, NAT Gateway y ALB.** Los servicios seleccionados pueden comunicarse mediante endpoints administrados. Una VPC aumentaría costo y operación sin mejorar el caso actual.
+
+## 4. Diagrama general
 
 ```mermaid
 flowchart TD
-    U[Usuario] --> CF[CloudFront]
-    CF --> FE[S3 Frontend Estático Privado]
+    U[Usuario] -->|HTTPS| CF[CloudFront]
+    CF -->|OAC| FE[S3 Frontend privado]
 
-    FE --> API[API Gateway HTTP API]
-    U --> API
+    FE -->|GET /datasets<br/>POST /upload-url| APIGW[API Gateway HTTP API]
+    APIGW --> LAPI[Lambda API]
 
-    API --> LAPI[Lambda API]
-    LAPI --> DDB[DynamoDB Resultados]
-    LAPI --> S3IN[S3 Bucket CSV Input]
+    LAPI -->|URL prefirmada| S3IN[S3 CSV Input privado]
+    U -->|PUT directo con URL prefirmada| S3IN
 
-    S3IN -->|ObjectCreated *.csv| LPROC[Lambda Procesadora]
-    LPROC --> DDB
-    LPROC --> DLQ[SQS Dead Letter Queue]
+    S3IN -->|ObjectCreated *.csv| LPROC[Lambda Processor]
+    LPROC -->|Resultados e insights| DDB[DynamoDB Results + PITR]
+    LAPI -->|Lectura de datasets| DDB
 
+    LPROC -. error técnico .-> DLQ[SQS DLQ]
+
+    APIGW --> APILOG[CloudWatch Access Logs]
     LAPI --> CWAPI[CloudWatch Logs API]
     LPROC --> CWPROC[CloudWatch Logs Processor]
-
-    CWAPI --> ALARMS[CloudWatch Alarms]
+    DLQ --> ALARMS[CloudWatch Alarms]
+    CWAPI --> ALARMS
     CWPROC --> ALARMS
-    DLQ --> ALARMS
+    APIGW --> ALARMS
 
-    ALARMS --> SNS[SNS Topic Email Alerts]
-    BUDGET[AWS Budgets] --> EMAIL[Correo estudiante]
+    ALARMS --> SNS[SNS Email Alerts]
+    BUDGET[AWS Budget USD 5] --> EMAIL[Correo responsable]
     SNS --> EMAIL
 
-    IAM[IAM Roles mínimo privilegio] -.-> LAPI
+    IAM[IAM mínimo privilegio] -.-> LAPI
     IAM -.-> LPROC
+
+    S3IN -. Lifecycle 30 días .-> EXP[Expiración automática]
+    CF -. Security headers .-> SEC[HSTS · CSP · X-Frame-Options]
 ```
 
-## 5. Componentes de la arquitectura
+El código Mermaid se mantiene en `docs/diagramas/arquitectura.mmd`.
 
-### 5.1 Frontend
+## 5. Flujo principal
 
-El frontend está compuesto por archivos estáticos HTML, CSS y JavaScript. Estos archivos se almacenan en un bucket S3 privado y se publican mediante CloudFront.
+### 5.1 Acceso al frontend
 
-Recursos utilizados:
+1. El usuario accede a CloudFront mediante HTTPS.
+2. CloudFront obtiene `index.html`, `app.js`, `styles.css` y `config.js` desde un bucket S3 privado.
+3. Origin Access Control permite que solo CloudFront lea el bucket.
+4. CloudFront agrega cabeceras de seguridad y evita el uso de una versión obsoleta del frontend.
 
-* S3 bucket privado para frontend.
-* CloudFront Distribution.
-* CloudFront Origin Access Control.
-* Bucket Policy que permite lectura solo desde CloudFront.
+### 5.2 Solicitud de carga
 
-URL desplegada:
+1. El usuario selecciona un archivo.
+2. El frontend valida extensión, tamaño y presencia de contenido.
+3. `POST /upload-url` envía nombre y tamaño declarado.
+4. API Gateway aplica CORS y throttling.
+5. Lambda API valida la solicitud y genera una URL prefirmada.
+6. La URL expira después de 900 segundos.
 
-```text
-https://d3197zbvtz2fyf.cloudfront.net
-```
+### 5.3 Carga directa
 
-### 5.2 API
+1. El navegador realiza un `PUT` directo a S3.
+2. La carga no atraviesa Lambda ni API Gateway.
+3. Esto reduce duración, transferencia intermedia y costo de cómputo.
+4. El bucket acepta el origen vigente de CloudFront mediante CORS.
 
-La API se implementa con API Gateway HTTP API y una función Lambda.
+### 5.4 Procesamiento
 
-Endpoint base:
+1. S3 emite un evento `ObjectCreated`.
+2. Lambda Processor obtiene el archivo.
+3. Verifica extensión, tamaño, estructura y encabezados.
+4. Interpreta campos entre comillas, comas internas y BOM.
+5. Valida cada fila.
+6. Calcula métricas, rankings, concentración, calidad e insights.
+7. Guarda el resultado en DynamoDB.
+8. El frontend espera la clave exacta del archivo y actualiza el dashboard.
 
-```text
-https://6f87p2cazd.execute-api.us-east-1.amazonaws.com
-```
+## 6. Flujo de errores
 
-Rutas implementadas:
+### Error de validación
+
+Ejemplos:
+
+- CSV vacío;
+- encabezados faltantes;
+- archivo sin filas válidas;
+- fecha incorrecta;
+- cantidad inválida;
+- precio incorrecto.
+
+Comportamiento:
+
+1. Se crea un registro con estado `ERROR`.
+2. Se guarda el tipo, mensaje y detalle del error.
+3. El log se registra como advertencia.
+4. La excepción no se relanza.
+5. No se activan reintentos ni la DLQ.
+
+### Error técnico
+
+Ejemplos:
+
+- error al leer S3;
+- error al escribir DynamoDB;
+- fallo inesperado de ejecución.
+
+Comportamiento:
+
+1. Se registra el error técnico.
+2. La excepción se relanza.
+3. Lambda aplica su política de reintentos.
+4. Si persiste, el evento puede llegar a la DLQ.
+5. CloudWatch puede activar una alarma y SNS notifica.
+
+Esta separación evita que un error esperado del archivo sea tratado como una caída de infraestructura.
+
+## 7. Componentes
+
+### 7.1 CloudFront y frontend
+
+Responsabilidades:
+
+- exponer la aplicación mediante HTTPS;
+- mantener privado el bucket de origen;
+- agregar cabeceras de seguridad;
+- distribuir archivos estáticos;
+- servir `config.js` con el endpoint vigente.
+
+Controles aplicados:
+
+- Origin Access Control;
+- HSTS;
+- Content Security Policy;
+- `X-Frame-Options: DENY`;
+- `X-Content-Type-Options: nosniff`;
+- `Referrer-Policy`;
+- política de caché para evitar frontend desactualizado.
+
+### 7.2 API Gateway HTTP API
+
+Rutas:
 
 ```text
 GET  /health
@@ -106,143 +202,229 @@ GET  /datasets/{dataset_id}
 POST /upload-url
 ```
 
-La ruta `/health` permite verificar el estado de la API. La ruta `/datasets` permite consultar los archivos procesados y sus resultados. La ruta `/upload-url` permite generar una URL prefirmada para cargar archivos CSV al bucket de entrada.
+Configuración:
 
-### 5.3 Procesamiento de archivos
+- throttling de 10 solicitudes por segundo;
+- burst de 20;
+- CORS restringido;
+- access logs JSON;
+- integración proxy con Lambda.
 
-El procesamiento se realiza mediante la función Lambda:
+Se eligió HTTP API por su menor complejidad y costo frente a REST API para este conjunto de rutas.
+
+### 7.3 Lambda API
+
+Responsabilidades:
+
+- responder `/health`;
+- listar hasta el límite configurado de datasets;
+- obtener un dataset por ID;
+- validar solicitudes de carga;
+- generar URL prefirmada;
+- devolver errores HTTP estructurados.
+
+Variables principales:
 
 ```text
-datossur-dev-processor
+RESULTS_TABLE_NAME
+INPUT_BUCKET_NAME
+MAX_UPLOAD_SIZE_BYTES
+UPLOAD_URL_EXPIRATION_SECONDS
+DATASET_LIMIT
+ALLOWED_ORIGIN
 ```
 
-Esta función se activa automáticamente cuando se carga un archivo `.csv` en el bucket de entrada:
+### 7.4 Bucket CSV Input
+
+Características:
+
+- acceso público bloqueado;
+- cifrado del lado de servidor;
+- versionamiento;
+- CORS restringido;
+- prefijo `uploads/`;
+- notificación hacia Lambda;
+- expiración de objetos a 30 días;
+- eliminación de versiones no vigentes después de 7 días.
+
+### 7.5 Lambda Processor
+
+Responsabilidades:
+
+- leer el archivo;
+- validar formato y contenido;
+- calcular resultados;
+- guardar `COMPLETADO` o `ERROR`;
+- distinguir errores de negocio y errores técnicos.
+
+Resultados principales:
 
 ```text
-datossur-dev-csv-input-251335054638
+totalSales
+totalUnits
+transactionCount
+invalidRows
+averageTicket
+averageUnitValue
+datasetQuality
+topProductsDetailed
+topProductsByRevenue
+categoryRanking
+insights
+recommendationDetails
+analysisVersion
 ```
 
-La función realiza las siguientes tareas:
+El indicador comercial combina calidad y concentración. No representa rentabilidad.
 
-1. Recibe el evento `ObjectCreated` desde S3.
-2. Obtiene el archivo CSV desde el bucket.
-3. Valida las columnas obligatorias.
-4. Procesa filas válidas.
-5. Cuenta filas inválidas.
-6. Calcula estadísticas.
-7. Guarda resultados en DynamoDB.
-8. Registra logs en CloudWatch.
+### 7.6 DynamoDB
 
-### 5.4 Capa de datos
-
-Los resultados se almacenan en DynamoDB:
+Tabla:
 
 ```text
 datossur-dev-results
 ```
 
-La clave primaria de la tabla es:
+Clave:
 
 ```text
 dataset_id
 ```
 
-Atributos principales:
+Datos almacenados:
 
-* `dataset_id`
-* `filename`
-* `bucket_name`
-* `status`
-* `created_at`
-* `total_sales`
-* `total_units`
-* `transaction_count`
-* `invalid_rows`
-* `summary_json`
-* `error_message`
+- nombre y bucket;
+- estado y fecha;
+- métricas principales;
+- resumen JSON;
+- tipo y detalle del error, cuando corresponde.
 
-### 5.5 Cola de errores
+Configuración:
 
-Se creó una cola SQS DLQ:
+- modo `PAY_PER_REQUEST`;
+- cifrado administrado;
+- Point-in-Time Recovery habilitado.
 
-```text
-datossur-dev-processor-dlq
-```
+### 7.7 SQS DLQ
 
-Esta cola permite registrar eventos fallidos de la Lambda procesadora. Además, existe una alarma de CloudWatch para detectar mensajes visibles en la cola.
+La DLQ recibe fallos técnicos persistentes de la Lambda procesadora.
 
-### 5.6 Observabilidad
-
-La arquitectura incluye monitoreo con CloudWatch y notificaciones mediante SNS.
-
-Recursos incluidos:
-
-* Log Group para Lambda API.
-* Log Group para Lambda procesadora.
-* Alarma de errores de Lambda API.
-* Alarma de errores de Lambda procesadora.
-* Alarma de errores 5XX de API Gateway.
-* Alarma de mensajes visibles en SQS DLQ.
-* SNS Topic para alertas por correo.
-
-El correo de alertas configurado es:
+Durante las pruebas de validación:
 
 ```text
-angelomarcelo.reyes@alumnos.ulagos.cl
+ApproximateNumberOfMessages = 0
+ApproximateNumberOfMessagesNotVisible = 0
+ApproximateNumberOfMessagesDelayed = 0
 ```
 
-La suscripción SNS fue confirmada correctamente por correo.
+Esto demostró que los CSV inválidos no fueron enviados erróneamente a la cola.
 
-### 5.7 Control de costos
+### 7.8 CloudWatch y SNS
 
-Se creó un AWS Budget mensual:
+Logs:
+
+```text
+/aws/lambda/datossur-dev-api
+/aws/lambda/datossur-dev-processor
+/aws/apigateway/datossur-dev-http-api/access
+```
+
+Alarmas:
+
+- errores de Lambda API;
+- errores de Lambda Processor;
+- errores 5XX de API Gateway;
+- mensajes visibles en la DLQ.
+
+SNS envía notificaciones al correo configurado localmente mediante `owner_email`.
+
+### 7.9 Budget
+
+Budget mensual:
 
 ```text
 datossur-dev-monthly-budget
 ```
 
-Límite configurado:
+Límite:
 
 ```text
 USD 5
 ```
 
-También se aplicaron tags comunes a los recursos:
+Alertas:
 
-```text
-Project     = datossur
-Environment = dev
-ManagedBy   = terraform
-Course      = FDICI12
-Owner       = angelomarcelo.reyes@alumnos.ulagos.cl
-```
+- 80 %;
+- 100 % real;
+- 100 % proyectado.
 
-## 6. Seguridad
+## 8. Escalabilidad
 
-La solución aplica el principio de mínimo privilegio mediante roles IAM separados.
+Los servicios seleccionados escalan de forma administrada:
 
-### Lambda API
+- CloudFront distribuye contenido desde su red global.
+- S3 soporta cargas concurrentes.
+- API Gateway administra conexiones y aplica throttling.
+- Lambda crea concurrencia según eventos.
+- DynamoDB on-demand adapta capacidad sin aprovisionamiento manual.
+- SQS retiene eventos fallidos.
 
-Permisos principales:
+Para el alcance académico no se agregaron límites de concurrencia reservada ni particionamiento complejo. Estos controles podrían incorporarse ante una carga real mayor.
 
-* Leer resultados desde DynamoDB.
-* Generar cargas hacia el bucket S3 de entrada mediante `s3:PutObject`.
-* Escribir logs en su propio Log Group.
+## 9. Alta disponibilidad y resiliencia
 
-### Lambda procesadora
+Los componentes administrados operan con redundancia dentro de la región. La solución no depende de una única instancia ni de una zona de disponibilidad administrada por el equipo.
 
-Permisos principales:
+Medidas aplicadas:
 
-* Leer objetos desde el bucket S3 de entrada.
-* Escribir resultados en DynamoDB.
-* Enviar mensajes a la DLQ.
-* Escribir logs en su propio Log Group.
+- servicios regionales administrados;
+- CloudFront como capa de distribución;
+- reintentos de Lambda para fallos técnicos;
+- DLQ;
+- PITR de DynamoDB;
+- versionamiento de S3;
+- lifecycle;
+- alarmas;
+- IaC reproducible.
 
-No se incluyen credenciales, access keys ni secretos dentro del código. Las funciones Lambda utilizan roles IAM asumidos por el servicio de AWS.
+La arquitectura no implementa recuperación multi-región. Esa decisión se considera proporcional al bajo impacto y presupuesto del MVP.
 
-## 7. Infraestructura como Código
+## 10. Seguridad
 
-Toda la infraestructura fue creada con Terraform. El proyecto usa una estructura modular:
+### Identidad y acceso
+
+- Roles separados para cada Lambda.
+- Permisos acotados a acciones y recursos requeridos.
+- Sin access keys en el código.
+- Backend y variables locales ignorados por Git.
+
+### Datos
+
+- Buckets privados.
+- Cifrado S3.
+- DynamoDB cifrado.
+- HTTPS.
+- OAC para frontend.
+- PITR para resultados.
+
+### Capa web
+
+- CORS restringido al dominio de CloudFront.
+- CSP limitada al frontend, API y bucket vigentes.
+- HSTS.
+- Protección contra framing.
+- Tipo de contenido protegido.
+- URL prefirmada temporal.
+- Validación de tamaño y extensión.
+- Throttling.
+
+### Limitación aceptada
+
+No existe autenticación. La API es pública y está protegida por controles de abuso básicos, no por identidad de usuario. Cognito se considera una mejora futura si el producto evoluciona a un servicio multiusuario.
+
+## 11. Infraestructura como Código
+
+Terraform se organiza en:
 
 ```text
 infra/
@@ -263,78 +445,83 @@ infra/
 └── versions.tf
 ```
 
-El backend remoto de Terraform utiliza:
+El bootstrap crea:
 
-* S3 para almacenar el estado.
-* DynamoDB para bloqueo del estado.
-* Cifrado y versionamiento en el bucket de estado.
+- bucket S3 de estado;
+- versionamiento;
+- cifrado;
+- bloqueo de acceso público;
+- tabla DynamoDB para lock.
 
-Recursos del backend:
+El ciclo validado comprende:
 
 ```text
-S3 tfstate: datossur-dev-tfstate-251335054638-f9e9bea5
-DynamoDB lock: datossur-dev-tf-lock
+terraform init
+terraform fmt -recursive
+terraform validate
+terraform plan
+terraform apply
+terraform plan sin cambios
+terraform destroy
 ```
 
-## 8. Flujo de funcionamiento
+El destroy final se ejecuta únicamente después de la evaluación y de guardar evidencias.
 
-1. El usuario accede al frontend mediante CloudFront.
-2. El frontend consulta la API.
-3. API Gateway invoca Lambda API.
-4. Lambda API obtiene resultados desde DynamoDB.
-5. El usuario carga un archivo CSV en el bucket de entrada.
-6. S3 genera un evento `ObjectCreated`.
-7. Lambda procesadora recibe el evento.
-8. Lambda lee y procesa el CSV.
-9. Lambda guarda resultados en DynamoDB.
-10. El frontend consulta nuevamente `/datasets`.
-11. Los resultados se muestran en la página web.
-12. CloudWatch registra logs y métricas.
-13. Las alarmas notifican por SNS si ocurre un problema.
+## 12. Observabilidad
 
-## 9. Formato CSV esperado
+La arquitectura permite responder:
 
-El archivo CSV debe tener las siguientes columnas:
+- qué ruta se llamó;
+- qué estado HTTP se devolvió;
+- qué archivo se procesó;
+- si el error fue de negocio o técnico;
+- si existen mensajes en la DLQ;
+- si Lambda o API Gateway generan errores;
+- si el gasto se acerca al límite mensual.
 
-```csv
-fecha,producto,categoria,cantidad,precio_unitario
-2026-06-01,Miel Nativa,Alimentos,2,4500
-2026-06-01,Lana Artesanal,Textil,1,12000
-2026-06-02,Mermelada Casera,Alimentos,3,3500
-```
+Los access logs de API Gateway usan formato JSON para facilitar filtrado.
 
-Columnas obligatorias:
+## 13. Costos
 
-* `fecha`
-* `producto`
-* `categoria`
-* `cantidad`
-* `precio_unitario`
+El detalle está en `docs/costos.md`.
 
-Validaciones:
+Resumen:
 
-* El archivo debe tener encabezado.
-* `cantidad` debe ser número mayor que cero.
-* `precio_unitario` debe ser número mayor o igual a cero.
-* Las filas inválidas son contabilizadas y reportadas.
+| Escenario | Costo |
+|---|---:|
+| MVP académico conservador | USD 0,71/mes |
+| 10.000 CSV mensuales | USD 4,33/mes |
+| Costo real observado | USD 0,00 |
+| EC2 mínima | USD 11,88/mes |
 
-## 10. Estado final de la arquitectura
+El enfoque serverless evita instancias, EBS, IPv4 pública, balanceador y administración permanente.
 
-La arquitectura fue desplegada correctamente y probada con archivos CSV válidos e inválidos.
+## 14. Limitaciones y evolución
 
-Resultados validados:
+Limitaciones actuales:
 
-* La API `/health` responde correctamente.
-* La API `/datasets` devuelve resultados procesados.
-* El frontend carga desde CloudFront.
-* El frontend consulta datos reales desde API Gateway.
-* S3 invoca la Lambda procesadora al subir archivos CSV.
-* DynamoDB almacena los resultados.
-* CloudWatch registra logs.
-* SNS envía alertas al correo confirmado.
-* AWS Budget quedó configurado.
-* Terraform fue validado con `fmt`, `validate`, `plan`, `apply` y segundo `apply` sin cambios.
+- sin autenticación;
+- sin aislamiento por usuario;
+- sin paginación completa;
+- recomendaciones basadas en reglas;
+- límite de 5 MB;
+- sin analítica histórica entre múltiples datasets;
+- sin predicción de demanda;
+- sin multi-región.
 
-## 11. Conclusión
+Evolución posible:
 
-DatosSur cumple con los objetivos del Hito 1 al presentar una arquitectura cloud serverless, funcional, segura, monitoreada, documentada y reproducible mediante Terraform. La solución queda preparada para un Hito 2 donde se podría mejorar la interfaz, agregar autenticación, incorporar gráficos y permitir cargas de archivos directamente desde el navegador.
+1. Cognito y separación por negocio.
+2. Paginación y GSI en DynamoDB.
+3. Comparación temporal entre datasets.
+4. Exportación de reportes.
+5. Reglas configurables por rubro.
+6. Predicción con historial suficiente.
+7. CI/CD.
+8. WAF si la aplicación se publica de forma permanente.
+
+## 15. Conclusión
+
+La arquitectura cumple el flujo funcional completo con servicios coherentes con una carga event-driven. El uso de componentes administrados reduce operación, permite escalar y mantiene el costo bajo.
+
+La combinación de validación, observabilidad, resiliencia, controles web, recuperación de datos y Terraform convierte el MVP en una solución demostrable y reproducible, no solo en una prueba aislada.

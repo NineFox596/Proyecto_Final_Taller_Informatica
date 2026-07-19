@@ -1,258 +1,452 @@
-# Evidencias del Hito 1 — DatosSur
+# Evidencias del Proyecto Final — DatosSur
 
-Este documento reúne las evidencias recomendadas para respaldar la entrega del Hito 1 del proyecto DatosSur.
+## 1. Propósito
 
-El objetivo de estas evidencias es demostrar que la infraestructura fue creada con Terraform, que la arquitectura funciona correctamente, que existe seguridad mediante IAM, que hay monitoreo con CloudWatch, control de costos con AWS Budgets y que el despliegue es reproducible.
+Este documento organiza las evidencias técnicas y funcionales del estado final de DatosSur. Su objetivo es demostrar, de forma verificable, el flujo end-to-end, la seguridad, resiliencia, observabilidad, control de costos e idempotencia de Terraform.
 
-## 1. Evidencias de Terraform
+### Despliegue vigente
 
-| Evidencia                      | Estado    | Descripción                                                      |
-| ------------------------------ | --------- | ---------------------------------------------------------------- |
-| Bootstrap aplicado             | Realizada | Creación del bucket S3 para `tfstate` y tabla DynamoDB para lock |
-| Backend remoto configurado     | Realizada | Terraform principal usa backend S3 + DynamoDB Lock               |
-| Módulo storage aplicado        | Realizada | Bucket CSV, DynamoDB resultados y SQS DLQ                        |
-| Módulo processing aplicado     | Realizada | Lambda procesadora, IAM, logs y trigger desde S3                 |
-| Módulo api aplicado            | Realizada | API Gateway HTTP API y Lambda API                                |
-| Módulo frontend aplicado       | Realizada | S3 frontend privado y CloudFront                                 |
-| Módulo monitoring aplicado     | Realizada | SNS y alarmas CloudWatch                                         |
-| Módulo budget aplicado         | Realizada | AWS Budget mensual                                               |
-| Segundo plan/apply sin cambios | Realizada | Evidencia de idempotencia                                        |
+| Recurso | Valor |
+|---|---|
+| Frontend CloudFront | `https://dziky8atb7317.cloudfront.net` |
+| API Gateway | `https://6zv537rbm5.execute-api.us-east-1.amazonaws.com` |
+| CloudFront Distribution ID | `E17ZQHQORAZWHI` |
+| Bucket CSV | `datossur-dev-csv-input-251335054638` |
+| Tabla DynamoDB | `datossur-dev-results` |
+| Lambda Processor | `datossur-dev-processor` |
+| Lambda API | `datossur-dev-api` |
+| Región | `us-east-1` |
 
-## 2. Evidencias funcionales
+> Si se ejecuta `terraform destroy` y se vuelve a desplegar, las URL deben actualizarse con `terraform output`.
 
-| Evidencia               | Estado    | Comando o recurso                            |
-| ----------------------- | --------- | -------------------------------------------- |
-| API health              | Realizada | `Invoke-RestMethod "$API_ENDPOINT/health"`   |
-| API datasets            | Realizada | `Invoke-RestMethod "$API_ENDPOINT/datasets"` |
-| Carga CSV válida        | Realizada | `aws s3 cp ventas_validas.csv s3://...`      |
-| Carga CSV con errores   | Realizada | `aws s3 cp ventas_invalidas.csv s3://...`    |
-| Frontend CloudFront     | Realizada | `https://d3197zbvtz2fyf.cloudfront.net`      |
-| Consulta desde frontend | Realizada | Botones "Probar API" y "Ver datasets"        |
+## 2. Resumen de validación
 
-## 3. Evidencias de observabilidad
+| Área | Estado |
+|---|---|
+| Flujo end-to-end | Validado |
+| Dashboard ejecutivo | Validado |
+| Insights y recomendaciones | Validado |
+| CSV válidos y parcialmente inválidos | Validado |
+| Errores controlados | Validado |
+| DLQ sin mensajes por validaciones | Validado |
+| API con validación y respuestas HTTP | Validado |
+| CORS restringido | Validado |
+| Cabeceras de seguridad | Validado |
+| Throttling | Validado |
+| Access logs | Validado |
+| DynamoDB PITR | Validado |
+| S3 Lifecycle | Validado |
+| Terraform sin cambios pendientes | Validado |
+| Cost Explorer | Validado |
+| Destroy final | Pendiente hasta finalizar la evaluación |
 
-| Evidencia                 | Estado    | Descripción                                  |
-| ------------------------- | --------- | -------------------------------------------- |
-| CloudWatch Logs API       | Realizada | Logs de `/aws/lambda/datossur-dev-api`       |
-| CloudWatch Logs Processor | Realizada | Logs de `/aws/lambda/datossur-dev-processor` |
-| CloudWatch Alarms         | Realizada | Alarmas para Lambda, API Gateway y DLQ       |
-| SNS Topic                 | Realizada | Topic de alertas creado por Terraform        |
-| SNS Subscription          | Realizada | Suscripción por correo confirmada            |
+## 3. Evidencias funcionales
 
-## 4. Evidencias de seguridad
+### 3.1 Frontend
 
-| Evidencia                      | Estado    | Descripción                                             |
-| ------------------------------ | --------- | ------------------------------------------------------- |
-| IAM Role Lambda API            | Realizada | Rol separado para Lambda API                            |
-| IAM Role Lambda Processor      | Realizada | Rol separado para Lambda procesadora                    |
-| Políticas de mínimo privilegio | Realizada | Acceso acotado a S3, DynamoDB, SQS y CloudWatch Logs    |
-| S3 frontend privado            | Realizada | Acceso público bloqueado; CloudFront con OAC            |
-| S3 input privado               | Realizada | Acceso público bloqueado y cifrado habilitado           |
-| Sin credenciales en código     | Realizada | No se versionan llaves, `.tfstate`, `.tfvars` ni `.env` |
+Pruebas realizadas:
 
-## 5. Evidencias de costos
+1. Carga inicial del sitio.
+2. Consulta de `/health`.
+3. Consulta de `/datasets`.
+4. Selección de un CSV.
+5. Solicitud de URL prefirmada.
+6. Carga directa a S3.
+7. Espera del dataset por la clave exacta.
+8. Visualización de métricas.
+9. Visualización de insights.
+10. Visualización de recomendaciones.
+11. Selección de datasets históricos.
+12. Visualización de datasets con error.
 
-| Evidencia              | Estado    | Descripción                                    |
-| ---------------------- | --------- | ---------------------------------------------- |
-| AWS Budget             | Realizada | Budget mensual de USD 5                        |
-| Alertas de presupuesto | Realizada | Notificación al correo del estudiante          |
-| Tags comunes           | Realizada | Project, Environment, ManagedBy, Course, Owner |
-| Retención de logs      | Realizada | CloudWatch Logs con retención configurada      |
-
-## 6. Outputs principales
-
-Valores relevantes del despliegue:
+Resultado:
 
 ```text
-frontend_url = https://d3197zbvtz2fyf.cloudfront.net
-api_endpoint = https://6f87p2cazd.execute-api.us-east-1.amazonaws.com
-input_bucket_name = datossur-dev-csv-input-251335054638
-results_table_name = datossur-dev-results
-processor_lambda_name = datossur-dev-processor
-api_lambda_name = datossur-dev-api
-budget_name = datossur-dev-monthly-budget
+GET  /health       200
+GET  /datasets     200
+POST /upload-url   200
+PUT  S3            200
 ```
 
-## 7. Comandos útiles para capturas
+### 3.2 Casos del Processor
 
-### Outputs finales
+| Archivo de prueba | Estado | Válidas | Inválidas | Resultado |
+|---|---|---:|---:|---|
+| `01_ventas_validas.csv` | `COMPLETADO` | 5 | 0 | Métricas e insights |
+| `02_ventas_con_filas_invalidas.csv` | `COMPLETADO` | 2 | 3 | Calidad reducida |
+| `03_campos_con_comas_y_comillas.csv` | `COMPLETADO` | 3 | 0 | Parser correcto |
+| `04_encabezados_faltantes.csv` | `ERROR` | 0 | — | Error controlado |
+| `05_solo_filas_invalidas.csv` | `ERROR` | 0 | — | Error controlado |
+| `06_csv_vacio.csv` | `ERROR` | 0 | — | Error controlado |
+| `07_fecha_invalida_parcial.csv` | `COMPLETADO` | 2 | 1 | Fila inválida contabilizada |
+
+Comando de consulta:
 
 ```powershell
-cd infra
-terraform output
+$Api = terraform output -raw api_endpoint
+$Response = Invoke-RestMethod "$Api/datasets"
+
+$Response.datasets |
+    Where-Object { $_.filename -like "*uploads/pruebas/*" } |
+    Select-Object filename, status, transaction_count, invalid_rows, error_message |
+    Format-Table -AutoSize
 ```
 
-### Validación e idempotencia
+### 3.3 Métricas verificadas
 
-```powershell
-terraform fmt -recursive
-terraform validate
-terraform plan
-terraform apply
-```
+- `totalSales`
+- `totalUnits`
+- `transactionCount`
+- `invalidRows`
+- `averageTicket`
+- `averageUnitValue`
+- `datasetQuality`
+- `topProductsDetailed`
+- `topProductsByRevenue`
+- `categoryRanking`
+- `insights`
+- `recommendationDetails`
+- `analysisVersion`
 
-Resultado esperado del segundo `plan/apply`:
+## 4. Errores controlados y DLQ
+
+Los errores de validación se registran como advertencias y no se relanzan.
+
+Logs esperados:
 
 ```text
-No changes. Your infrastructure matches the configuration.
-
-Apply complete! Resources: 0 added, 0 changed, 0 destroyed.
+INFO Archivo procesado correctamente
+WARN Validación controlada
+ERROR Error técnico
 ```
 
-### Probar API
+Atributos verificados de la DLQ:
+
+```json
+{
+  "ApproximateNumberOfMessages": "0",
+  "ApproximateNumberOfMessagesNotVisible": "0",
+  "ApproximateNumberOfMessagesDelayed": "0"
+}
+```
+
+Esto demuestra que CSV vacíos o mal formados no fueron tratados como fallos de infraestructura.
+
+Comando:
 
 ```powershell
-$API_ENDPOINT = "https://6f87p2cazd.execute-api.us-east-1.amazonaws.com"
+$DlqUrl = aws sqs list-queues `
+    --queue-name-prefix "datossur-dev-processor-dlq" `
+    --region us-east-1 `
+    --query "QueueUrls[0]" `
+    --output text
 
-Invoke-RestMethod "$API_ENDPOINT/health"
-Invoke-RestMethod "$API_ENDPOINT/datasets"
+aws sqs get-queue-attributes `
+    --queue-url "$DlqUrl" `
+    --attribute-names `
+        ApproximateNumberOfMessages `
+        ApproximateNumberOfMessagesNotVisible `
+        ApproximateNumberOfMessagesDelayed `
+    --region us-east-1
 ```
 
-### Subir CSV de prueba
+## 5. API refinada
+
+### Casos verificados
+
+| Caso | Resultado |
+|---|---|
+| Extensión `.txt` | HTTP 400 `INVALID_FILE_EXTENSION` |
+| Archivo mayor a 5 MB | HTTP 400 `FILE_TOO_LARGE` |
+| JSON incorrecto | HTTP 400 `INVALID_JSON_BODY` |
+| CSV válido | URL prefirmada creada |
+| Dataset inexistente | HTTP 404 |
+| Dataset con error | `error_type`, `error_message`, `error_details` |
+
+Ejemplo PowerShell:
 
 ```powershell
-$INPUT_BUCKET = "datossur-dev-csv-input-251335054638"
+$Body = @{
+    filename  = "ventas_grandes.csv"
+    file_size = 6000000
+} | ConvertTo-Json -Compress
 
-aws s3 cp samples\ventas_validas.csv s3://$INPUT_BUCKET/uploads/ventas_validas.csv
-aws s3 cp samples\ventas_invalidas.csv s3://$INPUT_BUCKET/uploads/ventas_invalidas.csv
+try {
+    Invoke-RestMethod `
+        -Method Post `
+        -Uri "$Api/upload-url" `
+        -ContentType "application/json; charset=utf-8" `
+        -Body $Body
+}
+catch {
+    Write-Host "HTTP:" ([int]$_.Exception.Response.StatusCode)
+    $_.ErrorDetails.Message
+}
 ```
 
-### Revisar logs
+## 6. Seguridad
+
+### 6.1 CloudFront
+
+Cabeceras observadas:
+
+```text
+Content-Security-Policy
+Strict-Transport-Security: max-age=31536000
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+X-XSS-Protection: 1; mode=block
+```
+
+Comando:
 
 ```powershell
-aws logs tail /aws/lambda/datossur-dev-api --region us-east-1 --since 15m
-aws logs tail /aws/lambda/datossur-dev-processor --region us-east-1 --since 15m
+curl.exe -I "https://dziky8atb7317.cloudfront.net"
 ```
 
-### Revisar alarmas
+La CSP permite conexiones únicamente al API y bucket vigentes.
+
+### 6.2 CORS
+
+Origen permitido:
+
+```text
+https://dziky8atb7317.cloudfront.net
+```
+
+Un origen externo no recibe `access-control-allow-origin`.
+
+### 6.3 IAM y almacenamiento
+
+- roles separados;
+- mínimo privilegio;
+- buckets privados;
+- S3 cifrado;
+- OAC;
+- sin credenciales versionadas;
+- variables y backend local ignorados;
+- DynamoDB PITR habilitado.
+
+## 7. Resiliencia
+
+### 7.1 DynamoDB PITR
+
+Comando:
+
+```powershell
+$Table = terraform output -raw results_table_name
+
+aws dynamodb describe-continuous-backups `
+  --table-name "$Table" `
+  --region us-east-1 `
+  --query "ContinuousBackupsDescription.PointInTimeRecoveryDescription.PointInTimeRecoveryStatus" `
+  --output text
+```
+
+Resultado:
+
+```text
+ENABLED
+```
+
+### 7.2 S3 Lifecycle
+
+Configuración validada:
+
+- archivos de entrada: 30 días;
+- versiones no vigentes del input: 7 días;
+- versiones no vigentes del frontend: 30 días.
+
+Comando:
+
+```powershell
+$Bucket = terraform output -raw input_bucket_name
+
+aws s3api get-bucket-lifecycle-configuration `
+  --bucket "$Bucket" `
+  --region us-east-1
+```
+
+## 8. API Gateway
+
+Configuración verificada:
+
+```json
+{
+  "DetailedMetricsEnabled": false,
+  "ThrottlingBurstLimit": 20,
+  "ThrottlingRateLimit": 10.0,
+  "AccessLogGroup": "/aws/apigateway/datossur-dev-http-api/access"
+}
+```
+
+Comando:
+
+```powershell
+$ApiId = aws apigatewayv2 get-apis `
+  --region us-east-1 `
+  --query "Items[?Name=='datossur-dev-http-api'].ApiId | [0]" `
+  --output text
+
+aws apigatewayv2 get-stage `
+  --api-id "$ApiId" `
+  --stage-name '$default' `
+  --region us-east-1 `
+  --query "{Throttling:DefaultRouteSettings,AccessLogSettings:AccessLogSettings}" `
+  --output json
+```
+
+## 9. Observabilidad
+
+### Logs
+
+```powershell
+aws logs tail /aws/lambda/datossur-dev-api `
+  --region us-east-1 `
+  --since 20m
+
+aws logs tail /aws/lambda/datossur-dev-processor `
+  --region us-east-1 `
+  --since 20m
+```
+
+### Alarmas
 
 ```powershell
 aws cloudwatch describe-alarms `
-  --alarm-name-prefix datossur-dev `
+  --alarm-name-prefix "datossur-dev" `
   --region us-east-1 `
   --query "MetricAlarms[].{Name:AlarmName,State:StateValue,Metric:MetricName}" `
   --output table
 ```
 
-### Revisar budget
+### SNS
+
+- topic creado por Terraform;
+- suscripción de correo confirmada;
+- alarmas conectadas al topic.
+
+## 10. Terraform e idempotencia
+
+Validaciones:
 
 ```powershell
-aws budgets describe-budget `
-  --account-id 251335054638 `
-  --budget-name datossur-dev-monthly-budget
+terraform fmt -recursive
+terraform validate
+terraform plan
 ```
 
-## 8. Capturas recomendadas para la entrega
+Resultados obtenidos durante las fases:
 
-Se recomienda guardar capturas de los siguientes puntos:
+```text
+Plan: 0 to add, 1 to change, 0 to destroy.
+Plan: 0 to add, 3 to change, 0 to destroy.
+Plan: 4 to add, 11 to change, 0 to destroy.
+```
 
-1. `terraform apply` del bootstrap.
-2. Outputs del bootstrap.
-3. `terraform init` con backend remoto.
-4. `terraform apply` de storage.
-5. `terraform apply` de processing.
-6. `terraform apply` de api.
-7. `terraform apply` de frontend.
-8. `terraform apply` de monitoring.
-9. `terraform apply` de budget.
-10. `terraform output`.
-11. Segundo `terraform plan/apply` sin cambios.
-12. API `/health`.
-13. API `/datasets`.
-14. Carga de CSV al bucket S3.
-15. Frontend funcionando en CloudFront.
-16. Frontend consultando datos reales.
-17. CloudWatch Logs de Lambda API.
-18. CloudWatch Logs de Lambda procesadora.
-19. CloudWatch Alarms.
-20. SNS subscription confirmada.
-21. AWS Budget.
-22. `terraform destroy`, cuando se realice la limpieza final.
+Después del hardening:
 
-## 9. Checklist de rúbrica
+```text
+No changes. Your infrastructure matches the configuration.
+```
 
-| Criterio                                            | Estado                              |
-| --------------------------------------------------- | ----------------------------------- |
-| Separación clara en archivos Terraform              | Cumplido                            |
-| Backend remoto S3 + DynamoDB Lock                   | Cumplido                            |
-| Variables con type, description y defaults          | Cumplido                            |
-| Outputs útiles                                      | Cumplido                            |
-| Cobertura de recursos coherente con la arquitectura | Cumplido                            |
-| Módulos propios reutilizables                       | Cumplido                            |
-| Segundo apply sin cambios                           | Cumplido                            |
-| IAM con mínimo privilegio                           | Cumplido                            |
-| Sin credenciales en código                          | Cumplido                            |
-| Tags consistentes                                   | Cumplido                            |
-| README e instrucciones                              | Pendiente de revisar                |
-| `.gitignore` excluye archivos sensibles             | Cumplido                            |
-| `terraform fmt` y `terraform validate`              | Cumplido                            |
-| `terraform destroy` final                           | Pendiente hasta terminar evidencias |
+El hardening fue aplicado sin destruir recursos existentes.
 
-## 10. Limpieza final
+## 11. Costos
 
-La limpieza debe ejecutarse solo después de obtener todas las evidencias y finalizar la documentación.
+Cost Explorer agrupado por servicio mostró:
 
-El orden correcto es:
+```text
+AWS Lambda                          USD 0
+Amazon API Gateway                  USD 0
+Amazon CloudFront                   USD 0
+Amazon DynamoDB                     USD 0
+Amazon SQS                          USD 0
+Amazon SNS                          USD 0
+AmazonCloudWatch                    USD 0
+Amazon S3                           USD 0.0000000043
+Total de la cuenta                  USD -0.0000001723
+```
 
-1. Destruir la infraestructura principal.
-2. Destruir el backend remoto.
+Interpretación práctica:
 
-### Destruir infraestructura principal
+```text
+Costo real observado: USD 0,00
+```
+
+El detalle y la proyección están en `docs/costos.md`.
+
+## 12. Capturas finales recomendadas
+
+| N.º | Archivo sugerido | Contenido |
+|---:|---|---|
+| 01 | `01_terraform_outputs.png` | Outputs vigentes |
+| 02 | `02_terraform_validate.png` | Validación exitosa |
+| 03 | `03_terraform_idempotencia.png` | Plan sin cambios |
+| 04 | `04_frontend_dashboard.png` | Dashboard ejecutivo |
+| 05 | `05_frontend_insights.png` | Insights y recomendaciones |
+| 06 | `06_subida_csv.png` | Flujo de carga |
+| 07 | `07_dataset_error.png` | Error controlado |
+| 08 | `08_api_health.png` | Health y límites |
+| 09 | `09_api_validacion_400.png` | Extensión o tamaño inválido |
+| 10 | `10_processor_pruebas.png` | Tabla de siete pruebas |
+| 11 | `11_processor_logs.png` | INFO y WARN |
+| 12 | `12_dlq_cero.png` | Atributos de la DLQ |
+| 13 | `13_api_gateway_stage.png` | Throttling y access logs |
+| 14 | `14_cloudfront_headers.png` | Cabeceras de seguridad |
+| 15 | `15_dynamodb_pitr.png` | Estado ENABLED |
+| 16 | `16_s3_lifecycle.png` | Reglas lifecycle |
+| 17 | `17_cloudwatch_alarms.png` | Alarmas |
+| 18 | `18_budget.png` | Budget USD 5 |
+| 19 | `19_cost_explorer.png` | Costo real |
+| 20 | `20_destroy_final.png` | Cleanup final |
+
+No deben aparecer access keys, secretos, tarjetas, credenciales ni información de pago.
+
+## 13. Checklist de cierre
+
+```text
+[x] Flujo principal funcional.
+[x] Dashboard ejecutivo.
+[x] Insights y recomendaciones.
+[x] Archivos válidos e inválidos.
+[x] Error de negocio controlado.
+[x] DLQ sin mensajes por validación.
+[x] API con respuestas estructuradas.
+[x] IAM mínimo privilegio.
+[x] Buckets privados.
+[x] CORS restringido.
+[x] Cabeceras de seguridad.
+[x] Throttling.
+[x] Access logs.
+[x] DynamoDB PITR.
+[x] S3 Lifecycle.
+[x] CloudWatch y SNS.
+[x] Budget.
+[x] Costos estimados y reales.
+[x] Terraform idempotente.
+[ ] Capturas finales ordenadas.
+[ ] Informe técnico final.
+[ ] Destroy final después de la evaluación.
+```
+
+## 14. Destroy final
+
+La limpieza se realiza después de guardar las capturas y concluir la evaluación.
+
+Infraestructura principal:
 
 ```powershell
 cd infra
 terraform destroy
 ```
 
-Confirmar con:
-
-```text
-yes
-```
-
-### Destruir backend remoto
+Backend remoto, solo después:
 
 ```powershell
 cd bootstrap
 terraform destroy
 ```
 
-Confirmar con:
-
-```text
-yes
-```
-
-No debe destruirse el backend antes que la infraestructura principal, porque el estado remoto se necesita para que Terraform pueda eliminar correctamente los recursos creados.
-
-## Evidencia Hito 2 - Validacion inicial del MVP
-
-Fecha de validacion: 2026-07-05
-
-### Outputs principales
-
-- Frontend CloudFront: https://d2ib7x3i7q8x7x.cloudfront.net
-- API Gateway: https://gnnidy1ka8.execute-api.us-east-1.amazonaws.com
-- Bucket CSV input: datossur-dev-csv-input-251335054638
-- Tabla DynamoDB: datossur-dev-results
-- Lambda procesadora: datossur-dev-processor
-- Lambda API: datossur-dev-api
-
-### Pruebas realizadas
-
-- API GET /health operativa.
-- API POST /upload-url genera URL prefirmada correctamente.
-- Subida de entas_validas.csv a S3 completada.
-- Lambda procesadora ejecutada autom�ticamente desde evento S3.
-- Resultado guardado en DynamoDB con estado COMPLETADO.
-- API GET /datasets devuelve datasets procesados.
-- Frontend p�blico en CloudFront carga correctamente.
-- Frontend muestra datasets, m�tricas y resultados.
-- Se prob� archivo con transacciones inv�lidas y el frontend muestra el nuevo set con registros inv�lidos.
-
-### Resultado
-
-El flujo principal del MVP funciona de punta a punta en AWS:
-
-Usuario -> CloudFront -> API Gateway -> Lambda API -> S3 -> Lambda Processor -> DynamoDB -> Frontend
-
+El orden es obligatorio porque la infraestructura principal depende del estado remoto.

@@ -56,6 +56,33 @@ resource "aws_s3_bucket_cors_configuration" "input" {
   }
 }
 
+resource "aws_s3_bucket_lifecycle_configuration" "input" {
+  bucket = aws_s3_bucket.input.id
+
+  depends_on = [aws_s3_bucket_versioning.input]
+
+  rule {
+    id     = "expire-uploaded-csv"
+    status = "Enabled"
+
+    filter {
+      prefix = "uploads/"
+    }
+
+    expiration {
+      days = var.input_object_expiration_days
+    }
+
+    noncurrent_version_expiration {
+      noncurrent_days = var.input_noncurrent_version_expiration_days
+    }
+
+    abort_incomplete_multipart_upload {
+      days_after_initiation = 1
+    }
+  }
+}
+
 resource "aws_s3_bucket_ownership_controls" "input" {
   bucket = aws_s3_bucket.input.id
 
@@ -76,6 +103,10 @@ resource "aws_dynamodb_table" "results" {
 
   server_side_encryption {
     enabled = true
+  }
+
+  point_in_time_recovery {
+    enabled = var.enable_dynamodb_pitr
   }
 
   tags = merge(var.common_tags, {
