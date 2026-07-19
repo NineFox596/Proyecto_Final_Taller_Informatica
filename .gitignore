@@ -1,41 +1,51 @@
-﻿# Terraform
+# Terraform: estado, caché y archivos locales
 **/.terraform/*
 *.tfstate
 *.tfstate.*
 crash.log
 crash.*.log
-*.tfvars
-!terraform.tfvars.example
+*.tfplan
+*.plan
+tfplan
+plan.out
 override.tf
 override.tf.json
 *_override.tf
 *_override.tf.json
 
-# Terraform backend local config
+# Configuración local del backend y variables
 infra/backend.hcl
+*.tfvars
+!terraform.tfvars.example
 
-# Lambda / Node
+# Credenciales, secretos y configuración local
+.env
+.env.*
+!.env.example
+.aws/
+*.pem
+*.key
+credentials
+
+# Node.js y artefactos de compilación
 node_modules/
 dist/
 build/
+
+# Paquetes y archivos generados
 *.zip
 
-# Variables locales
-.env
-.env.*
-
-# Sistema operativo
-.DS_Store
-Thumbs.db
-
-# Evidencias locales si no quieres versionarlas
-evidencias-locales/
-
-# Outputs reales de despliegue local
+# Evidencias y outputs locales no versionados
+evidencias-locales-hito1/
+evidencias-locales-hito2/
+evidencias-proyecto-final/
 docs/outputs-finales.txt
 
-# Terraform plan files
-*.tfplan
-*.plan
-tfplan
-plan.out
+# Sistema operativo y editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Nota:
+# .terraform.lock.hcl se versiona para fijar las versiones de los providers.
