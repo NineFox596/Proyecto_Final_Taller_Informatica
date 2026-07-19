@@ -3,87 +3,108 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DatosSur | Analítica CSV para emprendimientos</title>
+  <meta
+    name="description"
+    content="DatosSur convierte archivos CSV de ventas en métricas, alertas de calidad e insights comerciales." />
+  <title>DatosSur | Inteligencia comercial desde tus ventas</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
   <header class="hero">
-    <nav class="nav">
-      <div class="brand">DatosSur</div>
-      <span class="badge">MVP Serverless AWS</span>
+    <nav class="nav" aria-label="Navegación principal">
+      <a class="brand" href="#inicio" aria-label="DatosSur, volver al inicio">
+        <span class="brand-mark">DS</span>
+        <span>DatosSur</span>
+      </a>
+      <span class="badge">Inteligencia comercial · AWS Serverless</span>
     </nav>
 
-    <section class="hero-content">
-      <h1>Analítica simple para ventas del sur de Chile</h1>
-      <p>
-        Sube un archivo CSV de ventas, procesa los datos automáticamente en AWS
-        y revisa indicadores básicos desde un panel web.
+    <section id="inicio" class="hero-content">
+      <p class="eyebrow">Decisiones comerciales sin fórmulas manuales</p>
+      <h1>Convierte tus registros de ventas en acciones concretas.</h1>
+      <p class="hero-description">
+        Sube un CSV y recibe automáticamente métricas, calidad del dataset,
+        productos líderes, concentración de ventas y recomendaciones explicadas.
       </p>
 
+      <div class="value-points" aria-label="Beneficios de DatosSur">
+        <span>Procesamiento automático</span>
+        <span>Recomendaciones con evidencia</span>
+        <span>Infraestructura de bajo costo</span>
+      </div>
+
       <div class="actions">
-        <button id="btn-health" type="button">Probar API</button>
-        <button id="btn-datasets" type="button">Actualizar resultados</button>
+        <a class="button-link" href="#carga">Analizar un CSV</a>
+        <button id="btn-datasets" type="button" class="secondary">Actualizar resultados</button>
       </div>
     </section>
   </header>
 
   <main class="container">
-    <section class="card upload-card">
+    <section id="carga" class="card upload-card">
       <div class="section-header">
         <div>
-          <p class="eyebrow">Flujo principal del MVP</p>
-          <h2>Subir CSV de ventas</h2>
+          <p class="eyebrow">Flujo principal</p>
+          <h2>Subir archivo de ventas</h2>
         </div>
         <span class="status-pill" id="upload-state">Esperando archivo</span>
       </div>
 
       <p class="muted">
-        El archivo debe usar las columnas:
+        Columnas obligatorias:
         <strong>fecha, producto, categoria, cantidad, precio_unitario</strong>.
+        Formato de fecha: <strong>AAAA-MM-DD</strong>.
       </p>
 
       <div class="upload-box">
-        <input id="csv-file" type="file" accept=".csv,text/csv" />
-        <button id="btn-upload" type="button">Subir y procesar CSV</button>
+        <label class="file-control" for="csv-file">
+          <span>Seleccionar CSV</span>
+          <input id="csv-file" type="file" accept=".csv,text/csv" />
+        </label>
+        <span id="selected-file" class="selected-file">Ningún archivo seleccionado</span>
+        <button id="btn-upload" type="button">Subir y analizar</button>
       </div>
 
-      <p id="upload-message" class="message">Selecciona un archivo CSV para comenzar.</p>
+      <div class="upload-meta">
+        <span id="upload-limit">Límite de carga: consultando API…</span>
+        <span>La URL de carga expira automáticamente.</span>
+      </div>
+
+      <p id="upload-message" class="message" role="status" aria-live="polite">
+        Selecciona un archivo CSV para comenzar.
+      </p>
     </section>
 
-    <section class="card">
+    <section class="card executive-card">
       <div class="section-header">
         <div>
-          <p class="eyebrow">Resumen</p>
-          <h2>Último resultado procesado</h2>
+          <p class="eyebrow">Panel ejecutivo</p>
+          <h2 id="selected-dataset-title">Último análisis disponible</h2>
+          <p id="selected-dataset-date" class="muted compact-text">Sin dataset seleccionado.</p>
         </div>
         <button id="btn-refresh" type="button" class="secondary">Actualizar</button>
       </div>
 
-      <div class="metrics" id="metrics">
-        <article>
-          <span>Total vendido</span>
-          <strong>-</strong>
-        </article>
-        <article>
-          <span>Unidades</span>
-          <strong>-</strong>
-        </article>
-        <article>
-          <span>Transacciones</span>
-          <strong>-</strong>
-        </article>
-        <article>
-          <span>Filas inválidas</span>
-          <strong>-</strong>
-        </article>
+      <div class="metrics" id="metrics" aria-live="polite">
+        <article><span>Total vendido</span><strong>-</strong></article>
+        <article><span>Ticket promedio</span><strong>-</strong></article>
+        <article><span>Unidades</span><strong>-</strong></article>
+        <article><span>Transacciones</span><strong>-</strong></article>
+        <article><span>Calidad del dataset</span><strong>-</strong></article>
+        <article><span>Filas inválidas</span><strong>-</strong></article>
+      </div>
+
+      <div id="business-health" class="health-panel empty-panel">
+        Selecciona un dataset completado para ver el indicador comercial.
       </div>
     </section>
 
     <section class="card">
       <div class="section-header">
         <div>
-          <p class="eyebrow">DynamoDB</p>
+          <p class="eyebrow">Resultados almacenados</p>
           <h2>Datasets procesados</h2>
+          <p class="muted compact-text">Selecciona “Ver análisis” para cambiar el panel ejecutivo.</p>
         </div>
         <span id="dataset-count" class="badge muted-badge">0 datasets</span>
       </div>
@@ -95,40 +116,86 @@
               <th>Archivo</th>
               <th>Estado</th>
               <th>Total</th>
-              <th>Unidades</th>
-              <th>Inválidas</th>
+              <th>Calidad</th>
               <th>Fecha</th>
+              <th>Acción</th>
             </tr>
           </thead>
           <tbody id="datasets-table">
-            <tr>
-              <td colspan="6">Sin resultados todavía.</td>
-            </tr>
+            <tr><td colspan="6">Sin resultados todavía.</td></tr>
           </tbody>
         </table>
       </div>
     </section>
 
-    <section class="grid two-columns">
-      <article class="card compact-card">
-        <h2>Productos más vendidos</h2>
-        <div id="top-products" class="bars empty">Sin datos todavía.</div>
-      </article>
+    <section id="analysis-content" class="analysis-content">
+      <section class="card">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Lectura automática</p>
+            <h2>Insights comerciales</h2>
+          </div>
+          <span id="analysis-version" class="badge muted-badge">Sin análisis</span>
+        </div>
+        <div id="insights" class="insight-grid empty-panel">
+          Aún no hay insights para mostrar.
+        </div>
+      </section>
 
-      <article class="card compact-card">
-        <h2>Ventas por categoría</h2>
-        <div id="sales-by-category" class="bars empty">Sin datos todavía.</div>
-      </article>
+      <section class="card">
+        <div class="section-header">
+          <div>
+            <p class="eyebrow">Próximas acciones</p>
+            <h2>Recomendaciones explicadas</h2>
+          </div>
+          <span id="recommendation-count" class="badge muted-badge">0 recomendaciones</span>
+        </div>
+        <div id="recommendations" class="recommendations empty-panel">
+          Aún no hay recomendaciones para mostrar.
+        </div>
+      </section>
+
+      <section class="grid two-columns charts-grid">
+        <article class="card compact-card">
+          <div class="section-header compact-header">
+            <div>
+              <p class="eyebrow">Demanda</p>
+              <h2>Productos más vendidos</h2>
+            </div>
+          </div>
+          <div id="top-products" class="bars empty">Sin datos todavía.</div>
+        </article>
+
+        <article class="card compact-card">
+          <div class="section-header compact-header">
+            <div>
+              <p class="eyebrow">Ingresos</p>
+              <h2>Ventas por categoría</h2>
+            </div>
+          </div>
+          <div id="sales-by-category" class="bars empty">Sin datos todavía.</div>
+        </article>
+      </section>
+
+      <section id="dataset-error-card" class="card error-card hidden" aria-live="polite">
+        <p class="eyebrow danger-eyebrow">Archivo rechazado</p>
+        <h2>No fue posible analizar este dataset</h2>
+        <p id="dataset-error-message" class="error-copy"></p>
+        <div id="dataset-error-details" class="error-details"></div>
+      </section>
     </section>
 
-    <section class="card">
-      <h2>Estado de la API</h2>
+    <details class="card diagnostics-card">
+      <summary>Diagnóstico de la API</summary>
+      <div class="diagnostics-actions">
+        <button id="btn-health" type="button" class="secondary">Consultar estado</button>
+      </div>
       <pre id="health-output">Sin consultar todavía.</pre>
-    </section>
+    </details>
   </main>
 
   <footer>
-    Proyecto DatosSur · Hito 2 · MVP funcional desplegado en AWS
+    DatosSur · Inteligencia comercial serverless para pequeños negocios
   </footer>
 
   <script src="config.js"></script>
